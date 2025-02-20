@@ -25,7 +25,7 @@ jobs:
       - name: Log in to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v1
         with:
-          region: us-west-1  # Update with your AWS region
+          region: us-east-1  # Update with your AWS region
 
       # Step 4: Build Docker image and tag it as 'api' and 'latest'
       - name: Build Docker image and tag as 'api' and 'latest'
