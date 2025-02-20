@@ -79,9 +79,9 @@ jobs:
 
           # Step 8: Update ECS service with the new task definition revision
           aws ecs update-service \
-            --cluster your-cluster-name \
-            --service your-service-name \
-            --task-definition $NEW_TASK_DEF_REVISION \
+            --cluster api \
+            --service api \
+            --task-definition service \
             --force-new-deployment \
             --region us-east-1
 
