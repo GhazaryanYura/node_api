@@ -33,15 +33,55 @@ jobs:
       - name: Log in to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v1
 
-      # Step 5: Build Docker image and tag it as 'api' and 'latest'
-      - name: Build Docker image and tag as 'api' and 'latest'
+      # Step 5: Build Docker image and tag it as 'latest'
+      - name: Build Docker image and tag as 'latest'
         run: |
-          docker build -t ${{ secrets.AWS_ECR_REPO }}:api .
-          docker tag ${{ secrets.AWS_ECR_REPO }}:api ${{ secrets.AWS_ECR_REPO }}:latest
+          docker build -t ${{ secrets.AWS_ECR_REPO }}:latest .
 
-      # Step 6: Push Docker images to Amazon ECR
-      - name: Push Docker images to Amazon ECR
+      # Step 6: Push Docker image to Amazon ECR
+      - name: Push Docker image to Amazon ECR
         run: |
-          docker push ${{ secrets.AWS_ECR_REPO }}:api
           docker push ${{ secrets.AWS_ECR_REPO }}:latest
+
+      # Step 7: Update ECS Task Definition to use the latest image
+      - name: Update ECS Task Definition to use the latest image
+        run: |
+          # Create a new revision of the ECS task definition
+          NEW_TASK_DEF=$(aws ecs register-task-definition \
+            --family api \
+            --container-definitions "[
+              {
+                \"name\": \"api\",
+                \"image\": \"${{ secrets.AWS_ECR_REPO }}:latest\",
+                \"cpu\": 512,
+                \"memory\": 1024,
+                \"essential\": true,
+                \"portMappings\": [
+                  {
+                    \"containerPort\": 3000,
+                    \"hostPort\": 80
+                  }
+                ],
+                \"logConfiguration\": {
+                  \"logDriver\": \"awslogs\",
+                  \"options\": {
+                    \"awslogs-group\": \"/ecs/api-service\",
+                    \"awslogs-region\": \"us-east-1\",
+                    \"awslogs-stream-prefix\": \"ecs\"
+                  }
+                }
+              }
+            ]" \
+            --region us-east-1)
+
+          # Extract the new task definition revision ARN
+          NEW_TASK_DEF_REVISION=$(echo $NEW_TASK_DEF | jq -r '.taskDefinition.taskDefinitionArn')
+
+          # Step 8: Update ECS service with the new task definition revision
+          aws ecs update-service \
+            --cluster your-cluster-name \
+            --service your-service-name \
+            --task-definition $NEW_TASK_DEF_REVISION \
+            --force-new-deployment \
+            --region us-east-1
 
