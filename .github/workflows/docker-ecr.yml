@@ -29,7 +29,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1  # Replace with your AWS region (e.g., us-west-1, us-east-1, etc.)
 
-      # Step 4: Log in to AWS ECR
+      # Step 4: Log in to Amazon ECR
       - name: Log in to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v1
 
@@ -42,3 +42,17 @@ jobs:
       - name: Push Docker image to Amazon ECR
         run: |
           docker push ${{ secrets.AWS_ECR_REPO }}:latest
+
+      # Step 7: Update ECS service (Trigger new deployment)
+      - name: Update ECS service
+        run: |
+          aws ecs update-service \
+            --cluster "api" \
+            --service "api" \
+            --force-new-deployment
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-east-1  # Adjust as necessary
+
+
