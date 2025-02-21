@@ -43,12 +43,28 @@ jobs:
         run: |
           docker push ${{ secrets.AWS_ECR_REPO }}:latest
 
-      # Step 7: Update ECS service to use the new image
-      - name: Update ECS Service
+      # Step 7: Register a new revision of the Task Definition
+      - name: Register ECS Task Definition
+        run: |
+          # Replace with your task definition name
+          TASK_DEFINITION_NAME="api"
+          ECR_IMAGE_URI="${{ secrets.AWS_ECR_REPO }}:latest"
+
+          # Fetch current task definition to get the previous configurations
+          TASK_DEFINITION_JSON=$(aws ecs describe-task-definition --task-definition $TASK_DEFINITION_NAME)
+
+          # Modify the task definition to update the image in container definitions
+          UPDATED_TASK_DEFINITION=$(echo $TASK_DEFINITION_JSON | jq '.taskDefinition.containerDefinitions[0].image = "'$ECR_IMAGE_URI'"')
+
+          # Register the new task definition revision
+          echo $UPDATED_TASK_DEFINITION | aws ecs register-task-definition --cli-input-json file://<(echo $UPDATED_TASK_DEFINITION)
+
+      # Step 8: Update ECS Service with the new Task Definition
+      - name: Update ECS Service to use the new Task Definition
         run: |
           # Replace with your ECS cluster and service names
           CLUSTER_NAME="api"
           SERVICE_NAME="api"
 
-          # Update ECS service to pull the new image
-          aws ecs update-service --cluster $CLUSTER_NAME --service $SERVICE_NAME --force-new-deployment
+          # Update ECS service to use the newly registered task definition
+          aws ecs update-service --cluster $CLUSTER_NAME --service $SERVICE_NAME --task-definition $TASK_DEFINITION_NAME --force-new-deployment
