@@ -36,11 +36,15 @@ jobs:
       # Step 5: Build Docker image and tag it as 'latest'
       - name: Build Docker image and tag as 'latest'
         run: |
-          docker build -t ${{ secrets.AWS_ECR_REPO }}:latest .
+          IMAGE_TAG="${{ github.sha }}"
+          docker build -t ${{ secrets.AWS_ECR_REPO }}:$IMAGE_TAG .
+          docker tag ${{ secrets.AWS_ECR_REPO }}:$IMAGE_TAG ${{ secrets.AWS_ECR_REPO }}:latest
 
       # Step 6: Push Docker image to Amazon ECR
       - name: Push Docker image to Amazon ECR
         run: |
+          IMAGE_TAG="${{ github.sha }}"
+          docker push ${{ secrets.AWS_ECR_REPO }}:$IMAGE_TAG
           docker push ${{ secrets.AWS_ECR_REPO }}:latest
 
       # Step 7: Update ECS service (Trigger new deployment)
