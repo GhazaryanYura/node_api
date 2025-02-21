@@ -47,7 +47,7 @@ jobs:
       - name: Register ECS Task Definition
         run: |
           # Replace with your task definition name
-          TASK_DEFINITION_NAME="api"
+          FAMILY_NAME="api"
           ECR_IMAGE_URI="${{ secrets.AWS_ECR_REPO }}:latest"
 
           # Fetch current task definition to get the previous configurations
