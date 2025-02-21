@@ -46,23 +46,25 @@ jobs:
       # Step 7: Register ECS Task Definition
       - name: Register ECS Task Definition
         run: |
-          # Replace with your task definition name
+          # Replace with your task definition family name
           FAMILY_NAME="api"
-          TASK_DEFINITION="api"
           ECR_IMAGE_URI="${{ secrets.AWS_ECR_REPO }}:latest"
 
           # Fetch current task definition to get the previous configurations
-          TASK_DEFINITION_JSON=$(aws ecs describe-task-definition --task-definition $TASK_DEFINITION_NAME)
+          TASK_DEFINITION_JSON=$(aws ecs describe-task-definition --task-definition $FAMILY_NAME)
 
           # Modify the task definition to update the image in container definitions
           UPDATED_TASK_DEFINITION=$(echo $TASK_DEFINITION_JSON | jq \
-            '.taskDefinition.containerDefinitions[0].image = "'$ECR_IMAGE_URI'"')
+            '.taskDefinition | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy) |
+             .containerDefinitions[0].image = "'$ECR_IMAGE_URI'"')
 
           # Save the updated task definition as a temporary file
           echo $UPDATED_TASK_DEFINITION > updated_task_definition.json
 
           # Register the new task definition revision using the updated file
-          aws ecs register-task-definition --cli-input-json file://updated_task_definition.json
+          aws ecs register-task-definition \
+            --family $FAMILY_NAME \
+            --cli-input-json file://updated_task_definition.json
 
       # Step 8: Update ECS Service with the new Task Definition
       - name: Update ECS Service to use the new Task Definition
@@ -74,5 +76,5 @@ jobs:
           # Update ECS service to use the newly registered task definition
           # Force a new deployment to make ECS use the new task definition and pull the updated image
           aws ecs update-service --cluster $CLUSTER_NAME --service $SERVICE_NAME \
-            --task-definition $TASK_DEFINITION_NAME --force-new-deployment
+            --task-definition $FAMILY_NAME --force-new-deployment
 
