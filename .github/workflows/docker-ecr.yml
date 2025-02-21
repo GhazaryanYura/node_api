@@ -47,7 +47,7 @@ jobs:
       - name: Update ECS Task Definition
         run: |
           # Fetch the current task definition and create a new task definition with the updated image
-          CURRENT_TASK_DEF=$(aws ecs describe-task-definition --task-definition service)
+          CURRENT_TASK_DEF=$(aws ecs describe-task-definition --task-definition api)
           
           # Extract the container definition from the current task definition
           CONTAINER_DEF=$(echo $CURRENT_TASK_DEF | jq '.taskDefinition.containerDefinitions[0]')
@@ -61,6 +61,6 @@ jobs:
           # Update ECS service to use the new task definition
           aws ecs update-service \
             --cluster api \
-            --service service \
+            --service api \
             --force-new-deployment \
             --task-definition service
