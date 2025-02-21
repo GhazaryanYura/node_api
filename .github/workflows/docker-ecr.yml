@@ -43,45 +43,24 @@ jobs:
         run: |
           docker push ${{ secrets.AWS_ECR_REPO }}:latest
 
-      # Step 7: Update ECS Task Definition to use the latest image
-      - name: Update ECS Task Definition to use the latest image
+      # Step 7: Fetch current ECS Task Definition, update it with the new image
+      - name: Update ECS Task Definition
         run: |
-          # Create a new revision of the ECS task definition
-          NEW_TASK_DEF=$(aws ecs register-task-definition \
-            --family api \
-            --container-definitions "[
-              {
-                \"name\": \"api\",
-                \"image\": \"${{ secrets.AWS_ECR_REPO }}:latest\",
-                \"cpu\": 512,
-                \"memory\": 1024,
-                \"essential\": true,
-                \"portMappings\": [
-                  {
-                    \"containerPort\": 3000,
-                    \"hostPort\": 80
-                  }
-                ],
-                \"logConfiguration\": {
-                  \"logDriver\": \"awslogs\",
-                  \"options\": {
-                    \"awslogs-group\": \"/ecs/api-service\",
-                    \"awslogs-region\": \"us-east-1\",
-                    \"awslogs-stream-prefix\": \"ecs\"
-                  }
-                }
-              }
-            ]" \
-            --region us-east-1)
+          # Fetch the current task definition and create a new task definition with the updated image
+          CURRENT_TASK_DEF=$(aws ecs describe-task-definition --task-definition service)
+          
+          # Extract the container definition from the current task definition
+          CONTAINER_DEF=$(echo $CURRENT_TASK_DEF | jq '.taskDefinition.containerDefinitions[0]')
+          
+          # Update the image in the container definition
+          UPDATED_CONTAINER_DEF=$(echo $CONTAINER_DEF | jq '.image = "${{ secrets.AWS_ECR_REPO }}:latest"')
 
-          # Extract the new task definition revision ARN
-          NEW_TASK_DEF_REVISION=$(echo $NEW_TASK_DEF | jq -r '.taskDefinition.taskDefinitionArn')
-
-          # Step 8: Update ECS service with the new task definition revision
+      # Step 8: Update ECS Service to use the new task definition
+      - name: Update ECS Service
+        run: |
+          # Update ECS service to use the new task definition
           aws ecs update-service \
             --cluster api \
-            --service api \
-            --task-definition service \
+            --service service \
             --force-new-deployment \
-            --region us-east-1
-
+            --task-definition service
