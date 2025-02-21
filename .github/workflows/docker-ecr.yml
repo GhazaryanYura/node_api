@@ -42,7 +42,6 @@ jobs:
       - name: Push Docker image to Amazon ECR
         run: |
           docker push ${{ secrets.AWS_ECR_REPO }}:latest
-
       # Step 7: Register a new revision of the Task Definition
       - name: Register ECS Task Definition
         run: |
@@ -53,11 +52,15 @@ jobs:
           # Fetch current task definition to get the previous configurations
           TASK_DEFINITION_JSON=$(aws ecs describe-task-definition --task-definition $TASK_DEFINITION_NAME)
 
-          # Modify the task definition to update the image in container definitions
-          UPDATED_TASK_DEFINITION=$(echo $TASK_DEFINITION_JSON | jq '.taskDefinition.containerDefinitions[0].image = "'$ECR_IMAGE_URI'"')
+    # Modify the task definition to update the image in container definitions
+          UPDATED_TASK_DEFINITION=$(echo $TASK_DEFINITION_JSON | jq \
+            '.taskDefinition.containerDefinitions[0].image = "'$ECR_IMAGE_URI'"')
 
-          # Register the new task definition revision
-          echo $UPDATED_TASK_DEFINITION | aws ecs register-task-definition --cli-input-json file://<(echo $UPDATED_TASK_DEFINITION)
+    # Save the updated task definition as a temporary file
+          echo $UPDATED_TASK_DEFINITION > updated_task_definition.json
+
+    # Register the new task definition revision using the updated file
+          aws ecs register-task-definition --cli-input-json file://updated_task_definition.json
 
       # Step 8: Update ECS Service with the new Task Definition
       - name: Update ECS Service to use the new Task Definition
