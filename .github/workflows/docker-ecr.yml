@@ -36,16 +36,18 @@ jobs:
       # Step 5: Build Docker image and tag it as 'latest'
       - name: Build Docker image and tag as 'latest'
         run: |
-          docker build -t ${{ secrets.AWS_ECR_REPO }}:latest .
+          docker build \
+            --build-arg DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+            -t ${{ secrets.AWS_ECR_REPO }}:latest .
 
       # Step 6: Push Docker image to Amazon ECR
       - name: Push Docker image to Amazon ECR
         run: |
           docker push ${{ secrets.AWS_ECR_REPO }}:latest
 
-
       # Step 7: Update task definition
       - name: Update ECS task definition
+        id: task-def-update
         run: |
           # Describe the current task definition
           aws ecs describe-task-definition --task-definition api --query taskDefinition > task-definition.json
@@ -54,23 +56,22 @@ jobs:
           jq '.containerDefinitions[0].image = "${{ secrets.AWS_ECR_REPO }}:latest"' task-definition.json > new-task-definition.json
 
           # Register the new task definition
-          aws ecs register-task-definition \
-            --cli-input-json file://new-task-definition.json
+          NEW_TASK_DEF=$(aws ecs register-task-definition \
+            --cli-input-json file://new-task-definition.json \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+          
+          echo "::set-output name=task-definition-arn::$NEW_TASK_DEF"
 
-      # Step 7: Update task definition
-#      - name: Update task definition
-#        run: |
-#          aws ecs describe-task-definition --task-definition api --query taskDefinition > task-definition-migration.json
-
-      # Step 8: Update ECS service (Trigger new deployment)
+      # Step 8: Update ECS service with new task definition
       - name: Update ECS service
         run: |
           aws ecs update-service \
             --cluster "api" \
             --service "api" \
+            --task-definition ${{ steps.task-def-update.outputs.task-definition-arn }} \
             --force-new-deployment
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: us-east-1  # Adjust as necessary
-

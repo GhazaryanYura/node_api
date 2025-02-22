@@ -7,7 +7,7 @@ const port = 3000;
 const sequelize = new Sequelize({
   database: 'api_db',
   username: 'root',
-  password: 'mi_urishTIPISecureP4ssw0rd',
+  password: process.env.DB_PASSWORD,
   host: 'postgres-for-academy.cregwuq226t4.us-east-1.rds.amazonaws.com',
   port: 5432,
   dialect: 'postgres',
