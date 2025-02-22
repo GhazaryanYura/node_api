@@ -43,7 +43,26 @@ jobs:
         run: |
           docker push ${{ secrets.AWS_ECR_REPO }}:latest
 
-      # Step 7: Update ECS service (Trigger new deployment)
+
+      # Step 7: Update task definition
+      - name: Update ECS task definition
+        run: |
+          # Describe the current task definition
+          aws ecs describe-task-definition --task-definition api --query taskDefinition > task-definition.json
+    
+          # Modify the task definition by updating the Docker image tag
+          jq '.containerDefinitions[0].image = "${{ secrets.AWS_ECR_REPO }}:latest"' task-definition.json > new-task-definition.json
+
+          # Register the new task definition
+          aws ecs register-task-definition \
+            --cli-input-json file://new-task-definition.json
+
+      # Step 7: Update task definition
+#      - name: Update task definition
+#        run: |
+#          aws ecs describe-task-definition --task-definition api --query taskDefinition > task-definition-migration.json
+
+      # Step 8: Update ECS service (Trigger new deployment)
       - name: Update ECS service
         run: |
           aws ecs update-service \
@@ -54,5 +73,4 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: us-east-1  # Adjust as necessary
-
 

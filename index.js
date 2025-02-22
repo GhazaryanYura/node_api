@@ -64,7 +64,7 @@ app.get('/users/:id', async (req, res) => {
     if (user) {
       res.json(user);
     } else {
-      res.status(404).json({ error: 'User not founds' });
+      res.status(404).json({ error: 'User not found' });
     }
   } catch (error) {
     res.status(500).json({ error: error.message });
