@@ -49,15 +49,28 @@ jobs:
       - name: Update ECS task definition
         id: task-def-update
         run: |
-          # Describe the current task definition
-          aws ecs describe-task-definition --task-definition api --query taskDefinition > task-definition.json
-    
-          # Modify the task definition by updating the Docker image tag
-          jq '.containerDefinitions[0].image = "${{ secrets.AWS_ECR_REPO }}:latest"' task-definition.json > new-task-definition.json
+          # Get the current task definition and extract only the needed parameters
+          TASK_DEF=$(aws ecs describe-task-definition --task-definition api --query 'taskDefinition' | \
+            jq '{
+              family: .family,
+              taskRoleArn: .taskRoleArn,
+              executionRoleArn: .executionRoleArn,
+              networkMode: .networkMode,
+              containerDefinitions: .containerDefinitions,
+              volumes: .volumes,
+              placementConstraints: .placementConstraints,
+              requiresCompatibilities: .requiresCompatibilities,
+              cpu: .cpu,
+              memory: .memory
+            }')
+
+          # Update the container image in the task definition
+          UPDATED_TASK_DEF=$(echo $TASK_DEF | jq --arg IMAGE "${{ secrets.AWS_ECR_REPO }}:latest" \
+            '.containerDefinitions[0].image = $IMAGE')
 
           # Register the new task definition
           NEW_TASK_DEF=$(aws ecs register-task-definition \
-            --cli-input-json file://new-task-definition.json \
+            --cli-input-json "$UPDATED_TASK_DEF" \
             --query 'taskDefinition.taskDefinitionArn' \
             --output text)
           
